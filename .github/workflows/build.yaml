@@ -1,0 +1,55 @@
+name: build
+on:
+  pull_request:
+    branches: [ "**" ]
+    paths:
+      - .github/workflows/build.yml
+      - build.gradle.kts
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'buildSrc/**'
+      - 'src/**'
+  push:
+    branches: [ "main" ]
+    paths:
+      - .github/workflows/build.yml
+      - build.gradle.kts
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'buildSrc/**'
+      - 'src/**'
+
+permissions:
+  pull-requests: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          add-job-summary-as-pr-comment: on-failure
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Execute ktlint check
+        run: ./gradlew ktlintCheck
+
+      - name: Execute build
+        run: ./gradlew build
+
+      - name: Capture and upload build artifacts
+        if: ${{ runner.os == 'Linux' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: Artifacts
+          path: build/libs/
